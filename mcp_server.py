@@ -170,9 +170,11 @@ def book_flight(flight_number, date, passenger_name):
         res.raise_for_status()
         data = res.json()
 
+        ticket_id = data.get("id") or data.get("ticketId") or data.get("ticket_id")
         return json.dumps({
             "status": data.get("status", "Unknown"),
             "message": data.get("message", ""),
+            "ticket_id": ticket_id,
             "flight_number": flight_number.upper(),
             "passenger": passenger_name,
             "date": date,
