@@ -224,15 +224,16 @@ async def chat(request: Request):
             tools=OLLAMA_TOOLS,
         )
 
-        message = response.get("message", {})
+        # ollama SDK returns Pydantic objects — use attribute access, not .get()
+        message = response.message
 
         # ── Step 2: Check if LLM wants to call MCP tools ──
-        if message.get("tool_calls"):
+        if message.tool_calls:
             tool_results = []
 
-            for tool_call in message["tool_calls"]:
-                func_name = tool_call["function"]["name"]
-                func_args = tool_call["function"]["arguments"]
+            for tool_call in message.tool_calls:
+                func_name = tool_call.function.name
+                func_args = tool_call.function.arguments
 
                 print("  [LLM → MCP] Tool call: {}({})".format(func_name, func_args))
 
@@ -246,7 +247,20 @@ async def chat(request: Request):
                 print("  [MCP → Gateway] Result: {}...".format(result[:200]))
 
             # ── Step 4: Send tool results back to LLM ──
-            messages.append(message)  # assistant's tool_call message
+            # Rebuild assistant message as a plain dict so ollama can serialize it
+            messages.append({
+                "role": "assistant",
+                "content": message.content or "",
+                "tool_calls": [
+                    {
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        }
+                    }
+                    for tc in message.tool_calls
+                ],
+            })
 
             for tr in tool_results:
                 messages.append({
@@ -260,9 +274,9 @@ async def chat(request: Request):
                 messages=messages,
             )
 
-            final_text = final_response.get("message", {}).get(
-                "content",
-                "I processed your request but couldn't generate a response.",
+            final_text = (
+                final_response.message.content
+                or "I processed your request but couldn't generate a response."
             )
 
             # Save to conversation history
@@ -289,8 +303,8 @@ async def chat(request: Request):
 
         else:
             # ── No tool calls — conversational response ──
-            assistant_text = message.get(
-                "content", "I didn't understand that. Could you rephrase?"
+            assistant_text = (
+                message.content or "I didn't understand that. Could you rephrase?"
             )
 
             history.append({"role": "user", "content": user_msg})

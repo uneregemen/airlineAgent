@@ -18,6 +18,7 @@ Tools:
 import requests
 import json
 import os
+from datetime import date as dt_date
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -31,10 +32,10 @@ AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "password")
 _jwt_token = None
 
 
-def get_jwt_token():
+def get_jwt_token(force_refresh=False):
     """Authenticate with the airline API and cache a JWT token."""
     global _jwt_token
-    if _jwt_token:
+    if _jwt_token and not force_refresh:
         return _jwt_token
 
     try:
@@ -52,6 +53,16 @@ def get_jwt_token():
     except Exception as e:
         print("[MCP Server] Auth error: {}".format(e))
         return ""
+
+
+def auth_headers_with_retry(res_func):
+    """Call res_func with auth headers; retry once if 401."""
+    headers = auth_headers()
+    res = res_func(headers)
+    if res.status_code == 401:
+        headers = {"Content-Type": "application/json", "Authorization": "Bearer {}".format(get_jwt_token(force_refresh=True))}
+        res = res_func(headers)
+    return res
 
 
 def auth_headers():
@@ -82,7 +93,7 @@ def search_flights(departure_airport, arrival_airport, date=None, number_of_peop
     Auth: Public (no JWT required)
     """
     if not date:
-        date = "2025-01-01"
+        date = dt_date.today().isoformat()
 
     params = {
         "airportFrom": departure_airport.upper(),
@@ -153,11 +164,8 @@ def book_flight(flight_number, date, passenger_name):
     }
 
     try:
-        res = requests.post(
-            "{}/tickets/buy".format(GATEWAY_URL),
-            json=payload,
-            headers=auth_headers(),
-            timeout=15,
+        res = auth_headers_with_retry(
+            lambda h: requests.post("{}/tickets/buy".format(GATEWAY_URL), json=payload, headers=h, timeout=15)
         )
         res.raise_for_status()
         data = res.json()
@@ -202,11 +210,8 @@ def check_in(flight_number, date, passenger_name):
     }
 
     try:
-        res = requests.post(
-            "{}/tickets/checkin".format(GATEWAY_URL),
-            json=payload,
-            headers=auth_headers(),
-            timeout=15,
+        res = auth_headers_with_retry(
+            lambda h: requests.post("{}/tickets/checkin".format(GATEWAY_URL), json=payload, headers=h, timeout=15)
         )
         res.raise_for_status()
         data = res.json()
@@ -283,10 +288,8 @@ def cancel_ticket(ticket_id):
     Auth: JWT required
     """
     try:
-        res = requests.delete(
-            "{}/tickets/cancel/{}".format(GATEWAY_URL, ticket_id),
-            headers=auth_headers(),
-            timeout=15,
+        res = auth_headers_with_retry(
+            lambda h: requests.delete("{}/tickets/cancel/{}".format(GATEWAY_URL, ticket_id), headers=h, timeout=15)
         )
         res.raise_for_status()
         data = res.json()
