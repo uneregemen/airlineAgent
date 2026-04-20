@@ -186,7 +186,7 @@ airline-ai-agent/
 
 ## 🔗 Links
 
-- **Source Code:** [GitHub Repository](https://github.com/YOUR_USERNAME/airline-ai-agent)
+- **Source Code:** [GitHub Repository](https://github.com/uneregemen/airlineAgent)
 - **Midterm API Swagger:** `http://16.171.162.201:8080/swagger-ui/index.html`
 - **API Gateway:** `http://16.171.162.201:8081`
 
