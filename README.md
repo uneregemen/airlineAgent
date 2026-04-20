@@ -4,7 +4,7 @@ An AI-powered chat application for managing airline operations (search flights, 
 
 ## 📹 Video Demo
 
-> **Video Link:** [TODO: Add your video link here]
+> **Video Link:** https://drive.google.com/file/d/1TFaZGaJM40Ycn2kZOGzE2qCAZPWq_c6F/view?usp=sharing
 
 ---
 
