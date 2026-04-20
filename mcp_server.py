@@ -193,7 +193,7 @@ def check_in(flight_number, date, passenger_name):
         passenger_name (str): Full name of the passenger (must match booking)
 
     Gateway Endpoint: POST /api/v1/tickets/checkin
-    Auth: Public (no JWT required)
+    Auth: JWT required
     """
     payload = {
         "flightNumber": flight_number.upper(),
@@ -205,6 +205,7 @@ def check_in(flight_number, date, passenger_name):
         res = requests.post(
             "{}/tickets/checkin".format(GATEWAY_URL),
             json=payload,
+            headers=auth_headers(),
             timeout=15,
         )
         res.raise_for_status()
@@ -218,6 +219,7 @@ def check_in(flight_number, date, passenger_name):
         })
 
     except requests.exceptions.HTTPError as e:
+        status_code = e.response.status_code if e.response is not None else 0
         try:
             err_data = e.response.json()
             return json.dumps({
@@ -225,7 +227,15 @@ def check_in(flight_number, date, passenger_name):
                 "message": err_data.get("message", str(e)),
             })
         except Exception:
-            return json.dumps({"status": "error", "message": str(e)})
+            body = ""
+            try:
+                body = e.response.text[:300]
+            except Exception:
+                pass
+            return json.dumps({
+                "status": "error",
+                "message": "HTTP {} from backend. {}".format(status_code, body or str(e)),
+            })
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
 
